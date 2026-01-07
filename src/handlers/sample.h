@@ -5,7 +5,7 @@
 
 class ApiRouter;
 
-void handle_sample(const httplib::Request& req, httplib::Response& res) {
+void handle_sample(const httplib::Request& /*req*/, httplib::Response& res) {
 	nlohmann::json j;
 	j["status"] = "ok";
 	res.set_content(j.dump(), "application/json");

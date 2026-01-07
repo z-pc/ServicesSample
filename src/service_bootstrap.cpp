@@ -70,7 +70,7 @@ static std::wstring utf8_to_wide(const std::string& s) {
 	return ws;
 }
 
-static int handle_windows_service_commands(const cxxopts::ParseResult& result, const std::string& config_path) {
+static int handle_windows_service_commands(const cxxopts::ParseResult& result) {
 	const std::wstring svc_name = utf8_to_wide(std::string(APP_SERVICE_NAME));
 	const std::wstring svc_display = utf8_to_wide(std::string(APP_SERVICE_DISPLAY_NAME));
 	const std::wstring svc_desc = utf8_to_wide(std::string(APP_SERVICE_DESCRIPTION));
@@ -106,17 +106,17 @@ static int handle_windows_service_commands(const cxxopts::ParseResult& result, c
 
 } // namespace
 
-ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args, const std::string& config_path) {
+ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args) {
 	ServiceBootstrapResult out;
 #if defined(_WIN32)
 	const bool is_service_mode = (args.count("service") > 0);
 	if (is_service_mode) {
 		out.service_name = utf8_to_wide(std::string(APP_SERVICE_NAME));
 		winservice::report_event_info(out.service_name,
-		                              L"Starting (service mode). Config: " + utf8_to_wide(config_path));
+		                              L"Starting (service mode).");
 	}
 
-	out.command_exit_code = handle_windows_service_commands(args, config_path);
+	out.command_exit_code = handle_windows_service_commands(args);
 	if (out.command_exit_code != -1) {
 		return out;
 	}

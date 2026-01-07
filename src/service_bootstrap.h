@@ -23,4 +23,4 @@ struct ServiceBootstrapResult {
 #endif
 };
 
-ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args, const std::string& config_path);
+ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args);

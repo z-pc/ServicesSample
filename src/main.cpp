@@ -28,9 +28,7 @@ int main(int argc, char** argv) {
 			return 0;
 		}
 
-		const std::string config_path;
-
-		auto boot = bootstrap_service(result, config_path);
+		auto boot = bootstrap_service(result);
 		if (boot.command_exit_code != -1) {
 			return boot.command_exit_code;
 		}
