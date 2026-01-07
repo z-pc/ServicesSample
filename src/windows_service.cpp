@@ -11,6 +11,8 @@
 #include <exception>
 #include <string>
 
+#include "utf8.h"
+
 namespace winservice {
 
 static std::wstring win_err(DWORD code) {
@@ -21,16 +23,6 @@ static std::wstring win_err(DWORD code) {
 	std::wstring msg = size ? std::wstring(buffer, size) : L"Unknown error";
 	if (buffer) LocalFree(buffer);
 	return msg;
-}
-
-static std::wstring utf8_to_wide(const std::string& s) {
-	if (s.empty()) return {};
-	const int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-	std::wstring ws(static_cast<size_t>(len > 0 ? len - 1 : 0), L'\0');
-	if (len > 0) {
-		MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), len);
-	}
-	return ws;
 }
 
 static void set_error(std::wstring* out, const std::wstring& message) {
@@ -167,7 +159,8 @@ static VOID WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
 			                  L"Service runtime returned non-zero exit code: " + std::to_wstring(run_rc));
 		}
 	} catch (const std::exception& ex) {
-		report_event_impl(EVENTLOG_ERROR_TYPE, L"Unhandled exception: " + utf8_to_wide(std::string(ex.what())));
+		report_event_impl(EVENTLOG_ERROR_TYPE,
+		                  L"Unhandled exception: " + text::utf8_to_wide(std::string(ex.what())));
 		run_rc = 1;
 	} catch (...) {
 		report_event_impl(EVENTLOG_ERROR_TYPE, L"Unhandled non-standard exception");

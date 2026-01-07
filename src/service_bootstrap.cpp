@@ -12,6 +12,7 @@
 
 #if defined(_WIN32)
 #include "windows_service.h"
+#include "utf8.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -60,20 +61,10 @@ static void init_logging(const std::filesystem::path& logs_dir) {
 }
 
 #if defined(_WIN32)
-static std::wstring utf8_to_wide(const std::string& s) {
-	if (s.empty()) return {};
-	const int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-	std::wstring ws(static_cast<size_t>(len > 0 ? len - 1 : 0), L'\0');
-	if (len > 0) {
-		MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), len);
-	}
-	return ws;
-}
-
 static int handle_windows_service_commands(const cxxopts::ParseResult& result) {
-	const std::wstring svc_name = utf8_to_wide(std::string(APP_SERVICE_NAME));
-	const std::wstring svc_display = utf8_to_wide(std::string(APP_SERVICE_DISPLAY_NAME));
-	const std::wstring svc_desc = utf8_to_wide(std::string(APP_SERVICE_DESCRIPTION));
+	const std::wstring svc_name = text::utf8_to_wide(std::string(APP_SERVICE_NAME));
+	const std::wstring svc_display = text::utf8_to_wide(std::string(APP_SERVICE_DISPLAY_NAME));
+	const std::wstring svc_desc = text::utf8_to_wide(std::string(APP_SERVICE_DESCRIPTION));
 
 	if (result.count("service-install") > 0) {
 		wchar_t exe_path[MAX_PATH]{};
@@ -111,7 +102,7 @@ ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args) {
 #if defined(_WIN32)
 	const bool is_service_mode = (args.count("service") > 0);
 	if (is_service_mode) {
-		out.service_name = utf8_to_wide(std::string(APP_SERVICE_NAME));
+		out.service_name = text::utf8_to_wide(std::string(APP_SERVICE_NAME));
 		winservice::report_event_info(out.service_name,
 		                              L"Starting (service mode).");
 	}
@@ -138,7 +129,7 @@ ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args) {
 
 #if defined(_WIN32)
 	if (!is_service_mode && args.count("service") > 0) {
-		out.service_name = utf8_to_wide(std::string(APP_SERVICE_NAME));
+		out.service_name = text::utf8_to_wide(std::string(APP_SERVICE_NAME));
 	}
 #endif
 
