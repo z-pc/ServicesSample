@@ -1,4 +1,4 @@
-# test-api-service
+# Service sample
 
  Cross-platform C++17 API service.
 
@@ -7,7 +7,6 @@
 - `cpp-httplib` (as `httplib` port)
 - `spdlog`, `fmt`
 - `cxxopts`
-- `athread`
 
 ## Build (CMake + vcpkg)
 
@@ -20,9 +19,8 @@ cmake --build build
 ## Run
 
 ```bash
-./build/test_api_service --config config.json
+./build/app_service
 ```
 
 ## Endpoints
-- `GET /health` -> `{ "status": "ok" }`
-- `POST /echo` -> `{ "len": <n>, "body": "..." }`
+- `GET /sample` -> `{ "status": "ok" }`
