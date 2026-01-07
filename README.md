@@ -1,4 +1,4 @@
-# app_
+# Service sample
 
  Cross-platform C++17 API service.
 
