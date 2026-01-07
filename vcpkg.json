@@ -1,7 +1,7 @@
 {
-  "name": "test-api-service",
+  "name": "service-sample",
   "version-string": "0.1.0",
-  "description": "Cross-platform C++14 API service with JSON config and thread pool",
+  "description": "service sample",
   "builtin-baseline": "b1b19307e2d2ec1eefbdb7ea069de7d4bcd31f01",
   "dependencies": [
     "nlohmann-json",
