@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <exception>
 #include <string>
+#include <thread>
 
 #include "utf8.h"
 
@@ -89,8 +90,12 @@ bool uninstall_service(const std::wstring& service_name, std::wstring* error) {
 
 static SERVICE_STATUS_HANDLE g_status_handle = nullptr;
 static SERVICE_STATUS g_status{};
+
 static HANDLE g_stop_event = nullptr;
-static int (*g_run_callback)(void) = nullptr;
+
+static int (*g_run_callback_v2)(void* context, void* stop_event) = nullptr;
+static void* g_run_context = nullptr;
+
 static std::wstring g_service_name;
 
 static void report_event_impl(WORD type, const std::wstring& msg) {
@@ -135,6 +140,32 @@ static VOID WINAPI service_ctrl_handler(DWORD control) {
 	}
 }
 
+static DWORD run_callback_guarded() {
+	int run_rc = 0;
+
+	try {
+		report_event_impl(EVENTLOG_INFORMATION_TYPE, L"Service starting");
+		report_status(SERVICE_RUNNING);
+
+		if (g_run_callback_v2) {
+			run_rc = g_run_callback_v2(g_run_context, g_stop_event);
+		}
+
+		if (run_rc != 0) {
+			report_event_impl(EVENTLOG_ERROR_TYPE,
+			                  L"Service runtime returned non-zero exit code: " + std::to_wstring(run_rc));
+		}
+	} catch (const std::exception& ex) {
+		report_event_impl(EVENTLOG_ERROR_TYPE, L"Unhandled exception: " + text::utf8_to_wide(std::string(ex.what())));
+		run_rc = 1;
+	} catch (...) {
+		report_event_impl(EVENTLOG_ERROR_TYPE, L"Unhandled non-standard exception");
+		run_rc = 1;
+	}
+
+	return static_cast<DWORD>(run_rc);
+}
+
 static VOID WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
 	g_status_handle = RegisterServiceCtrlHandlerW(g_service_name.c_str(), service_ctrl_handler);
 	if (!g_status_handle) return;
@@ -147,43 +178,32 @@ static VOID WINAPI service_main(DWORD /*argc*/, LPWSTR* /*argv*/) {
 
 	report_status(SERVICE_START_PENDING, NO_ERROR, 2000);
 
-	int run_rc = 0;
-	try {
-		report_event_impl(EVENTLOG_INFORMATION_TYPE, L"Service starting");
-		report_status(SERVICE_RUNNING);
-		if (g_run_callback) {
-			run_rc = g_run_callback();
-		}
-		if (run_rc != 0) {
-			report_event_impl(EVENTLOG_ERROR_TYPE,
-			                  L"Service runtime returned non-zero exit code: " + std::to_wstring(run_rc));
-		}
-	} catch (const std::exception& ex) {
-		report_event_impl(EVENTLOG_ERROR_TYPE,
-		                  L"Unhandled exception: " + text::utf8_to_wide(std::string(ex.what())));
-		run_rc = 1;
-	} catch (...) {
-		report_event_impl(EVENTLOG_ERROR_TYPE, L"Unhandled non-standard exception");
-		run_rc = 1;
-	}
+	DWORD worker_rc = 0;
+	std::thread worker([&]() { worker_rc = run_callback_guarded(); });
 
-	if (run_rc != 0) {
-		g_status.dwServiceSpecificExitCode = static_cast<DWORD>(run_rc);
+	const HANDLE wait_handles[2] = {g_stop_event, worker.native_handle()};
+	(void)WaitForMultipleObjects(2, wait_handles, FALSE, INFINITE);
+
+	if (worker.joinable()) worker.join();
+
+	CloseHandle(g_stop_event);
+	g_stop_event = nullptr;
+
+	if (worker_rc != 0) {
+		g_status.dwServiceSpecificExitCode = worker_rc;
 		report_status(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR);
 		return;
 	}
 
-	WaitForSingleObject(g_stop_event, INFINITE);
-	CloseHandle(g_stop_event);
-	g_stop_event = nullptr;
-
 	report_status(SERVICE_STOPPED);
 }
 
-int run_service(const std::wstring& service_name, int (*run_callback)(void)) {
+int run_service(const std::wstring& service_name, int (*run_callback)(void* context, void* stop_event), void* context) {
 	report_event_info(service_name, L"Service is starting");
 	g_service_name = service_name;
-	g_run_callback = run_callback;
+
+	g_run_callback_v2 = run_callback;
+	g_run_context = context;
 
 	SERVICE_TABLE_ENTRYW table[2]{};
 	table[0].lpServiceName = const_cast<LPWSTR>(g_service_name.c_str());

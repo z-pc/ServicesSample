@@ -103,8 +103,7 @@ ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args) {
 	const bool is_service_mode = (args.count("service") > 0);
 	if (is_service_mode) {
 		out.service_name = text::utf8_to_wide(std::string(APP_SERVICE_NAME));
-		winservice::report_event_info(out.service_name,
-		                              L"Starting (service mode).");
+		winservice::report_event_info(out.service_name, L"Starting (service mode).");
 	}
 
 	out.command_exit_code = handle_windows_service_commands(args);

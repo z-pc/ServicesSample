@@ -7,11 +7,14 @@
 
 #include <exception>
 #include <string>
+#include <thread>
 
 #include <cxxopts.hpp>
 #include <spdlog/spdlog.h>
 
 #if defined(_WIN32)
+#include <windows.h>
+
 #include "windows_service.h"
 #endif
 
@@ -40,11 +43,26 @@ int main(int argc, char** argv) {
 
 #if defined(_WIN32)
 		if (boot.run_as_service()) {
-			static HttpServer* g_server = nullptr;
-			static ApiRouter* g_router = nullptr;
-			g_server = &server;
-			g_router = &router;
-			return winservice::run_service(boot.service_name, []() -> int { return g_server->run(*g_router); });
+			struct Ctx {
+				HttpServer* server;
+				ApiRouter* router;
+			} ctx{&server, &router};
+
+			auto run = [](void* ctxp, void* stop_evt) -> int {
+				auto* ctx = static_cast<Ctx*>(ctxp);
+				HANDLE ev = static_cast<HANDLE>(stop_evt);
+
+				std::thread stopper([ctx, ev]() {
+					WaitForSingleObject(ev, INFINITE);
+					ctx->server->stop();
+				});
+
+				const int rc = ctx->server->run(*ctx->router);
+				if (stopper.joinable()) stopper.join();
+				return rc;
+			};
+
+			return winservice::run_service(boot.service_name, run, &ctx);
 		}
 #endif
 
