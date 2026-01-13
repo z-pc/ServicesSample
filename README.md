@@ -10,7 +10,10 @@ A small C++17 HTTP service sample.
 - Logging: `spdlog` (console + rotating file)
 - CLI parsing: `cxxopts`
 
-The demo API currently exposes a single endpoint: `GET /sample`.
+The service now exposes basic observability endpoints by default:
+
+- `GET /healthz`
+- `GET /status`
 
 ## Requirements
 
@@ -91,17 +94,24 @@ Note: the build copies [config.json](config.json) next to the built executable.
 
 ## Run
 
-Run from the `build/` directory:
+Linux/macOS:
 
 ```bash
-./build/app_services
+cd build
+./app_services
+```
+
+Windows (example for CMake multi-config generators):
+
+```powershell
+.\build\Release\app_services.exe
 ```
 
 You should see logs like:
 
 - `Using data_dir: ...`
 - `Listening on 0.0.0.0:8080 (threads=...)`
-- Per-request logs: `GET /sample 200 remote_addr=...`
+- Per-request logs (non-observability paths): `GET /unknown 404 remote_addr=...`
 
 ## Configuration
 
@@ -150,19 +160,41 @@ If you don’t set `data_dir` on Linux/macOS, logs will be under:
 
 ## API
 
-### GET /sample
+### GET /healthz
 
-Returns:
+Returns plain text:
 
-```json
-{"status":"ok"}
+```text
+ok
 ```
 
 Quick test:
 
 ```bash
-curl -s http://127.0.0.1:8080/sample
+curl -s http://127.0.0.1:8080/healthz
 ```
+
+### GET /status
+
+Returns a small JSON payload (counters are process-wide):
+
+```json
+{"requests_total":123,"requests_in_flight":0}
+```
+
+Quick test:
+
+```bash
+curl -s http://127.0.0.1:8080/status
+```
+
+### GET /metrics (disabled by default)
+
+Prometheus text format endpoint. Currently disabled in handler registration.
+
+### GET /trace (disabled by default)
+
+Returns tracing/correlation headers (and echoes them in the body). Currently disabled in handler registration.
 
 ### 404
 
@@ -186,6 +218,9 @@ Example:
 app_services.exe --service-install
 app_services.exe --service
 ```
+
+Note: `--service-install` configures basic service recovery (automatic restarts on failure) using the Windows Service
+Control Manager defaults baked into the app.
 
 ## Troubleshooting
 
