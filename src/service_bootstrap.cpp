@@ -40,19 +40,49 @@ static std::filesystem::path default_data_dir() {
 #endif
 }
 
-static void init_logging(const std::filesystem::path& logs_dir) {
+static void init_logging(const std::filesystem::path& logs_dir, bool is_service_mode
+#if defined(_WIN32)
+                         ,
+                         const std::wstring& service_name
+#endif
+) {
 	std::error_code ec;
 	std::filesystem::create_directories(logs_dir, ec);
+	if (ec) {
+#if defined(_WIN32)
+		if (is_service_mode && !service_name.empty()) {
+			winservice::report_event_error(service_name, L"Failed to create logs directory: " +
+			                                                 text::utf8_to_wide(logs_dir.string()) + L" err=" +
+			                                                 text::utf8_to_wide(ec.message()));
+		}
+#endif
+		// Keep going; file sink will likely fail and be reported below.
+	}
 
-	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-	// 10MB x 5 files: logs/app.log, app.1.log, ...
-	auto file_sink =
-	    std::make_shared<spdlog::sinks::rotating_file_sink_mt>((logs_dir / "app.log").string(), 10 * 1024 * 1024, 5);
+	try {
+		std::vector<spdlog::sink_ptr> sinks;
 
-	std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
-	auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
-	spdlog::set_default_logger(logger);
-	spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+		if (!is_service_mode) {
+			sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+		}
+
+		// 10MB x 5 files: logs/app.log, app.1.log, ...
+		sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>((logs_dir / "app.log").string(),
+		                                                                       10 * 1024 * 1024, 5));
+
+		auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
+		spdlog::set_default_logger(logger);
+		spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+		spdlog::flush_on(spdlog::level::info);
+	} catch (const std::exception& ex) {
+#if defined(_WIN32)
+		if (is_service_mode && !service_name.empty()) {
+			winservice::report_event_error(service_name, L"Logging initialization failed: " +
+			                                                 text::utf8_to_wide(std::string(ex.what())));
+		}
+#endif
+		// As a last resort, keep default spdlog behavior (may be no-op in service).
+	}
 }
 
 #if defined(_WIN32)
@@ -118,7 +148,12 @@ ServiceBootstrapResult bootstrap_service(const cxxopts::ParseResult& args) {
 	std::filesystem::create_directories(data_dir, ec);
 	std::filesystem::create_directories(logs_dir, ec);
 
-	init_logging(logs_dir);
+#if defined(_WIN32)
+	init_logging(logs_dir, (args.count("service") > 0), out.service_name);
+#else
+	init_logging(logs_dir, false);
+#endif
+
 	spdlog::info("Using data_dir: {}", data_dir.string());
 
 #if defined(_WIN32)
