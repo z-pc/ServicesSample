@@ -21,10 +21,12 @@ add_executable(app_services
   src/api_router.cpp
   src/handlers.cpp
   src/utf8.cpp
+  src/observability.cpp
   src/handlers.h
   src/handlers/sample.h
   src/service_bootstrap.h
   src/utf8.h
+  src/observability.h
 )
 
 # Copy config.json next to the built executable.

@@ -2,11 +2,6 @@
 
 #include "windows_service.h"
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
 #include <cstdint>
 #include <exception>
 #include <string>

@@ -13,11 +13,6 @@
 #if defined(_WIN32)
 #include "windows_service.h"
 #include "utf8.h"
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
 #endif
 
 namespace {

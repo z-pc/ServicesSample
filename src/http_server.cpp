@@ -25,6 +25,10 @@ int HttpServer::run(const ApiRouter& router) {
 	});
 
 	server_.set_logger([](const httplib::Request& req, const httplib::Response& res) {
+		// Observability endpoints can become hot paths; keep default access logging off for them.
+		if (req.path == "/healthz" || req.path == "/metrics" || req.path == "/trace" || req.path == "/status") {
+			return;
+		}
 		spdlog::info("{} {} {} remote_addr={}", req.method, req.path, res.status, req.remote_addr);
 	});
 
