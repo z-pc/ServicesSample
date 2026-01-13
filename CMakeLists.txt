@@ -23,7 +23,6 @@ add_executable(app_services
   src/utf8.cpp
   src/observability.cpp
   src/handlers.h
-  src/handlers/sample.h
   src/service_bootstrap.h
   src/utf8.h
   src/observability.h

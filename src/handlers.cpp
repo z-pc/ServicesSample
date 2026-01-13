@@ -1,6 +1,5 @@
 #include "handlers.h"
 
-#include "handlers/sample.h"
 #include "api_router.h"
 #include "observability.h"
 
