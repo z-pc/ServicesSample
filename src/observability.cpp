@@ -10,7 +10,7 @@
 
 namespace {
 
-using clock_t = std::chrono::steady_clock;
+using steady_clock_t = std::chrono::steady_clock;
 
 struct Metrics {
 	std::atomic<uint64_t> requests_total{0};
@@ -133,9 +133,9 @@ void obs::register_observability(ApiRouter& api, const ObservabilityOptions& opt
 		m.requests_total.fetch_add(1, std::memory_order_relaxed);
 		m.requests_in_flight.fetch_add(1, std::memory_order_relaxed);
 
-		const auto start = clock_t::now();
+		const auto start = steady_clock_t::now();
 		next();
-		const auto end = clock_t::now();
+		const auto end = steady_clock_t::now();
 
 		m.requests_in_flight.fetch_sub(1, std::memory_order_relaxed);
 		observe_latency(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
