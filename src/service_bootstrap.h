@@ -12,13 +12,10 @@ struct ServiceBootstrapResult {
 	AppConfig config;
 
 #if defined(_WIN32)
-	// -1 => not handled, otherwise return code to exit process
-	int command_exit_code = -1;
 	std::wstring service_name;
 
-	bool run_as_service() const { return !service_name.empty() && command_exit_code == -1; }
+	bool run_as_service() const { return !service_name.empty(); }
 #else
-	int command_exit_code = -1;
 	bool run_as_service() const { return false; }
 #endif
 };

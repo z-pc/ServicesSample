@@ -21,9 +21,7 @@
 int main(int argc, char** argv) {
 	try {
 		cxxopts::Options options(APP_SERVICE_NAME, APP_SERVICE_DESCRIPTION);
-		options.add_options()("help", "Show help")("service", "Run as Windows Service (Windows only)")(
-		    "service-install", "Install Windows Service (Windows only)")("service-uninstall",
-		                                                                 "Uninstall Windows Service (Windows only)");
+		options.add_options()("help", "Show help")("service", "Run as Windows Service (Windows only)");
 
 		auto result = options.parse(argc, argv);
 		if (result.count("help") > 0) {
@@ -32,9 +30,6 @@ int main(int argc, char** argv) {
 		}
 
 		auto boot = bootstrap_service(result);
-		if (boot.command_exit_code != -1) {
-			return boot.command_exit_code;
-		}
 
 		AppConfig cfg = boot.config;
 		ApiRouter router;

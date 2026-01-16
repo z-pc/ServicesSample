@@ -208,18 +208,16 @@ Unknown routes return:
 
 Supported options:
 
-- `--service` run as a Windows service
-- `--service-install` install the service
-- `--service-uninstall` uninstall the service
+- `--service` run as Windows Service (used by the installer-created service)
 
 Example:
 
 ```powershell
-app_services.exe --service-install
+Service installation is handled by the installer (Inno Setup) via a post-install script.
 app_services.exe --service
 ```
 
-Note: `--service-install` configures basic service recovery (automatic restarts on failure) using the Windows Service
+Note: Service recovery (automatic restarts on failure) is configured by the installer script.
 Control Manager defaults baked into the app.
 
 ## Troubleshooting

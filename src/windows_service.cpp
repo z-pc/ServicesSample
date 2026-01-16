@@ -13,20 +13,6 @@
 
 namespace winservice {
 
-RecoveryOptions RecoveryOptions::defaults() {
-	RecoveryOptions opt;
-	opt.reset_period_seconds = 24 * 60 * 60;
-	opt.apply_on_non_crash_failures = true;
-
-	opt.actions = {
-	    {SC_ACTION_RESTART, 5'000},
-	    {SC_ACTION_RESTART, 10'000},
-	    {SC_ACTION_RESTART, 30'000},
-	};
-
-	return opt;
-}
-
 static std::wstring win_err(DWORD code) {
 	LPWSTR buffer = nullptr;
 	const DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
@@ -39,97 +25,6 @@ static std::wstring win_err(DWORD code) {
 
 static void set_error(std::wstring* out, const std::wstring& message) {
 	if (out) *out = message;
-}
-
-static void apply_recovery_options(SC_HANDLE svc, const RecoveryOptions& opt) {
-	if (opt.actions.empty()) return;
-
-	std::vector<SC_ACTION> actions;
-	actions.reserve(opt.actions.size());
-	for (const auto& a : opt.actions) {
-		SC_ACTION sc{};
-		sc.Type = a.type;
-		sc.Delay = a.delay_ms;
-		actions.push_back(sc);
-	}
-
-	SERVICE_FAILURE_ACTIONSW fa{};
-	fa.dwResetPeriod = opt.reset_period_seconds;
-	fa.lpRebootMsg = opt.reboot_message.empty() ? nullptr : const_cast<LPWSTR>(opt.reboot_message.c_str());
-	fa.lpCommand = opt.command.empty() ? nullptr : const_cast<LPWSTR>(opt.command.c_str());
-	fa.cActions = static_cast<DWORD>(actions.size());
-	fa.lpsaActions = actions.data();
-
-	(void)ChangeServiceConfig2W(svc, SERVICE_CONFIG_FAILURE_ACTIONS, &fa);
-
-	SERVICE_FAILURE_ACTIONS_FLAG flag{};
-	flag.fFailureActionsOnNonCrashFailures = opt.apply_on_non_crash_failures ? TRUE : FALSE;
-	(void)ChangeServiceConfig2W(svc, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag);
-}
-
-bool install_service(const Options& opt, const std::wstring& bin_path_with_args, std::wstring* error) {
-	return install_service(opt, bin_path_with_args, RecoveryOptions::defaults(), error);
-}
-
-bool install_service(const Options& opt, const std::wstring& bin_path_with_args, const RecoveryOptions& recovery,
-                     std::wstring* error) {
-	SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
-	if (!scm) {
-		set_error(error, L"OpenSCManagerW failed: " + win_err(GetLastError()));
-		return false;
-	}
-
-	SC_HANDLE svc = CreateServiceW(
-	    scm, opt.service_name.c_str(), opt.display_name.empty() ? opt.service_name.c_str() : opt.display_name.c_str(),
-	    SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
-	    bin_path_with_args.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
-
-	if (!svc) {
-		set_error(error, L"CreateServiceW failed: " + win_err(GetLastError()));
-		CloseServiceHandle(scm);
-		return false;
-	}
-
-	if (!opt.description.empty()) {
-		SERVICE_DESCRIPTIONW desc{};
-		desc.lpDescription = const_cast<LPWSTR>(opt.description.c_str());
-		(void)ChangeServiceConfig2W(svc, SERVICE_CONFIG_DESCRIPTION, &desc);
-	}
-
-	apply_recovery_options(svc, recovery);
-
-	CloseServiceHandle(svc);
-	CloseServiceHandle(scm);
-	return true;
-}
-
-bool uninstall_service(const std::wstring& service_name, std::wstring* error) {
-	SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
-	if (!scm) {
-		set_error(error, L"OpenSCManagerW failed: " + win_err(GetLastError()));
-		return false;
-	}
-
-	SC_HANDLE svc = OpenServiceW(scm, service_name.c_str(), SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
-	if (!svc) {
-		set_error(error, L"OpenServiceW failed: " + win_err(GetLastError()));
-		CloseServiceHandle(scm);
-		return false;
-	}
-
-	SERVICE_STATUS status{};
-	ControlService(svc, SERVICE_CONTROL_STOP, &status);
-
-	if (!DeleteService(svc)) {
-		set_error(error, L"DeleteService failed: " + win_err(GetLastError()));
-		CloseServiceHandle(svc);
-		CloseServiceHandle(scm);
-		return false;
-	}
-
-	CloseServiceHandle(svc);
-	CloseServiceHandle(scm);
-	return true;
 }
 
 static SERVICE_STATUS_HANDLE g_status_handle = nullptr;
