@@ -34,10 +34,6 @@ Metrics& metrics() {
 	return m;
 }
 
-static bool is_observability_path(const std::string& path, const obs::ObservabilityOptions& opt) {
-	return path == opt.health_path || path == opt.metrics_path || path == opt.trace_path || path == opt.status_path;
-}
-
 static void observe_latency(std::chrono::milliseconds ms) {
 	auto& m = metrics();
 	const auto v = ms.count();
