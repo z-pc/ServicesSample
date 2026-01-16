@@ -160,6 +160,109 @@ If you don’t set `data_dir` on Linux/macOS, logs will be under:
 
 ## API
 
+## Adding endpoints (handlers) & middleware
+
+Routing is wrapped by `ApiRouter` (see [src/api_router.h](src/api_router.h)). Register endpoints inside `register_handlers(ApiRouter& api)` (see [src/handlers.cpp](src/handlers.cpp)).
+
+### Implementing a handler
+
+A handler has the signature:
+
+```cpp
+using Handler = std::function<void(const httplib::Request&, httplib::Response&)>;
+```
+
+Example endpoint `GET /hello` (already present):
+
+```cpp
+api.get("/hello", [](const httplib::Request& req, httplib::Response& res) {
+	nlohmann::json j;
+	j["message"] = "Hello, World!";
+	res.status = 200;
+	res.set_content(j.dump(), "application/json");
+});
+```
+
+Available route registration helpers:
+
+- `api.get(path, handler)`
+- `api.post(path, handler)`
+- `api.put(path, handler)`
+- `api.del(path, handler)`
+
+Quick notes for handlers:
+
+- Set `res.status` before returning.
+- Use `res.set_content(body, content_type)` to set the response body.
+- If handlers can throw, the router supports centralized error handling via `set_exception_handler(...)` (see `ApiRouter`).
+
+### Grouping routes by prefix
+
+To group endpoints under a prefix (e.g. `/api/v1`), use `group(prefix, define_routes)`:
+
+```cpp
+api.group("/api/v1", [](ApiRouter& r) {
+	r.get("/ping", [](const httplib::Request&, httplib::Response& res) {
+		res.status = 200;
+		res.set_content("pong", "text/plain; charset=utf-8");
+	});
+});
+// -> GET /api/v1/ping
+```
+
+### Implementing middleware
+
+Middleware has the signature:
+
+```cpp
+using Next = std::function<void()>;
+using Middleware = std::function<void(const httplib::Request&, httplib::Response&, Next)>;
+```
+
+There are two kinds:
+
+- `api.use(mw)` runs *before* the route handler
+- `api.use_after(mw)` runs *after* the route handler
+
+Middleware runs as a chain. If you want the request to continue to the route handler (or the next middleware), you **must call `next()`**. If you set a response and *don’t* call `next()`, the request stops there (commonly used for auth/deny).
+
+#### Example: timing + access log (before)
+
+```cpp
+api.use([](const httplib::Request& req, httplib::Response& res, ApiRouter::Next next) {
+	const auto start = std::chrono::steady_clock::now();
+	next();
+	const auto end = std::chrono::steady_clock::now();
+	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	spdlog::info("{} {} took {}ms status={}", req.method, req.path, ms, res.status);
+});
+```
+
+#### Example: simple auth (before, blocks request)
+
+```cpp
+api.use([](const httplib::Request& req, httplib::Response& res, ApiRouter::Next next) {
+	auto it = req.headers.find("x-api-key");
+	if (it == req.headers.end() || it->second != "secret") {
+		res.status = 401;
+		res.set_content("unauthorized", "text/plain; charset=utf-8");
+		return; // no next() => stop
+	}
+	next();
+});
+```
+
+#### Example: add a response header (after)
+
+```cpp
+api.use_after([](const httplib::Request&, httplib::Response& res, ApiRouter::Next next) {
+	next();
+	res.set_header("x-service", "app_services");
+});
+```
+
+For a real example used in this repo, see the observability middleware in [src/observability.cpp](src/observability.cpp).
+
 ### GET /healthz
 
 Returns plain text:
