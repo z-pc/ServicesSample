@@ -7,8 +7,7 @@
 
 #include <spdlog/spdlog.h>
 
-HttpServer::HttpServer(std::string host, int port, std::size_t threads)
-    : host_(std::move(host)), port_(port), threads_(threads) {}
+HttpServer::HttpServer(int port, std::size_t threads) : port_(port), threads_(threads) {}
 
 int HttpServer::run(const ApiRouter& router) {
 	const auto hw = std::max<unsigned>(1u, std::thread::hardware_concurrency());
@@ -32,8 +31,9 @@ int HttpServer::run(const ApiRouter& router) {
 		spdlog::info("{} {} {} remote_addr={}", req.method, req.path, res.status, req.remote_addr);
 	});
 
-	spdlog::info("Listening on {}:{} (threads={})", host_, port_, thread_count);
-	const bool ok = server_.listen(host_, port_);
+	constexpr const char* kBindHost = "0.0.0.0";
+	spdlog::info("Listening on {}:{} (threads={})", kBindHost, port_, thread_count);
+	const bool ok = server_.listen(kBindHost, port_);
 	return ok ? 0 : 1;
 }
 

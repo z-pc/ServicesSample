@@ -210,13 +210,6 @@ Supported options:
 
 - `--service` run as Windows Service (used by the installer-created service)
 
-Example:
-
-```powershell
-Service installation is handled by the installer (Inno Setup) via a post-install script.
-app_services.exe --service
-```
-
 Note: Service recovery (automatic restarts on failure) is configured by the installer script.
 Control Manager defaults baked into the app.
 

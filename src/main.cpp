@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
 		AppConfig cfg = boot.config;
 		ApiRouter router;
 		register_handlers(router);
-		HttpServer server(cfg.host, cfg.port, cfg.threads);
+		HttpServer server(cfg.port, cfg.threads);
 
 #if defined(_WIN32)
 		if (boot.run_as_service()) {

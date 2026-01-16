@@ -15,7 +15,6 @@ AppConfig load_config_from_file(const std::string& path) {
 	in >> j;
 
 	AppConfig cfg;
-	if (j.contains("host")) cfg.host = j.at("host").get<std::string>();
 	if (j.contains("port")) cfg.port = j.at("port").get<int>();
 	if (j.contains("threads")) cfg.threads = j.at("threads").get<std::size_t>();
 	if (j.contains("data_dir")) cfg.data_dir = j.at("data_dir").get<std::string>();
