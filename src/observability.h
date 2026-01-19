@@ -4,12 +4,15 @@
 
 namespace obs {
 
+/**
+ * @brief Options controlling built-in observability endpoints and behavior.
+ */
 struct ObservabilityOptions {
 	bool enable_health = true;
 	bool enable_metrics = true;
 	bool enable_tracing = true;
 
-	// Skip logging for endpoints that can become hot paths.
+	/// @brief Skip access logging for observability endpoints to reduce noise/hot-path overhead.
 	bool skip_access_log_for_observability = true;
 
 	std::string health_path = "/healthz";
@@ -18,6 +21,9 @@ struct ObservabilityOptions {
 	std::string status_path = "/status";
 };
 
+/**
+ * @brief Register health/metrics/tracing/status endpoints and associated middleware on the router.
+ */
 void register_observability(ApiRouter& api, const ObservabilityOptions& opt = {});
 
 } // namespace obs
